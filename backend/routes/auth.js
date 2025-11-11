@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import { pool } from "../db.js";
 import dotenv from "dotenv";
 
+
+
 dotenv.config();
 
 export const router = express.Router();
@@ -102,3 +104,5 @@ router.post("/login", async (req, res) => {
 router.get("/me", protect, (req, res) => {
   res.json({ success: true, user: req.user });
 });
+
+

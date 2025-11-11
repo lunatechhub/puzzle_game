@@ -5,13 +5,12 @@ import { pool } from "../db.js";
 import { protect } from "./auth.js";
 
 export const router = express.Router();
-
 /* === START NEW GAME === */
+
 router.post("/new", protect, async (req, res) => {
   try {
     const email = req.user.email;
     const { level = "easy" } = req.body;
-
     // Fetch a fresh Banana question
     const { data } = await axios.get("https://marcconrad.com/uob/banana/api.php");
     if (!data?.question) throw new Error("Invalid Banana API response");
@@ -93,3 +92,8 @@ router.get("/leaderboard", async (req, res) => {
     res.status(500).json({ message: "Error fetching leaderboard" });
   }
 });
+
+
+
+
+

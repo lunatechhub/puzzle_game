@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import api from "../lib/api";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
+
 export default function Game() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const level = params.get("level") || "easy";
-
+  
   const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState("");
   const [message, setMessage] = useState("");
