@@ -40,3 +40,15 @@
 .read-the-docs {
   color: #888;
 }
+
+
+/* leaderboard glow animation */
+@keyframes softGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(59,130,246,0.2); }
+  50% { box-shadow: 0 0 18px rgba(59,130,246,0.35); }
+}
+
+.leaderboard-card {
+  animation: softGlow 4s ease-in-out infinite;
+}
+

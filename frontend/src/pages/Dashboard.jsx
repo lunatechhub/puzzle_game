@@ -44,7 +44,7 @@ export default function Dashboard() {
         </div>
 
         <div className="mini-leaderboard">
-          <h3>Top 3 Players 🏆</h3>
+          
           {topPlayers.length ? (
             <ul>
               {topPlayers.map((p, i) => (

@@ -1,13 +1,8 @@
 import mysql from "mysql2/promise";
-import dotenv from "dotenv";
-dotenv.config();
 
 export const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD, // ✅ matches .env
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  host: "localhost",
+  user: "root",           // change if needed
+  password: "luna@111", // your MySQL password
+  database: "banana_app",
 });

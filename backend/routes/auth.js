@@ -4,24 +4,13 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { pool } from "../db.js";
 import dotenv from "dotenv";
-
-
-
 dotenv.config();
 
 export const router = express.Router();
 
-// Helper: consistent error
 const sendError = (res, code, message) =>
   res.status(code).json({ success: false, message });
 
-// Helper: sign JWT
-const signToken = (user) =>
-  jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  });
-
-// Middleware: protect routes
 export const protect = async (req, res, next) => {
   try {
     const header = req.headers.authorization || "";
@@ -40,7 +29,7 @@ export const protect = async (req, res, next) => {
     next();
   } catch (err) {
     console.error("Auth error:", err.message);
-    return sendError(res, 401, "Invalid or expired token");
+    return sendError(res, 401, "Invalid token");
   }
 };
 
@@ -62,7 +51,7 @@ router.post("/register", async (req, res) => {
       hash,
     ]);
 
-    res.json({ success: true, message: "Registration successful!" });
+    res.json({ success: true, message: "Registered successfully" });
   } catch (err) {
     console.error("Register error:", err);
     return sendError(res, 500, "Server error during registration");
@@ -73,24 +62,24 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password)
-      return sendError(res, 400, "Email and password required");
+    if (!email || !password) return sendError(res, 400, "Missing fields");
 
     const [rows] = await pool.query(
       "SELECT id, email, password FROM users WHERE email = ?",
       [email]
     );
-    if (!rows.length) return sendError(res, 401, "Invalid email or password");
+    if (!rows.length) return sendError(res, 401, "Invalid credentials");
 
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return sendError(res, 401, "Invalid email or password");
+    if (!match) return sendError(res, 401, "Invalid credentials");
 
-    const token = signToken(user);
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-    return res.json({
+    res.json({
       success: true,
-      message: "Login successful",
       token,
       user: { id: user.id, email: user.email },
     });
@@ -100,9 +89,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/* === GET CURRENT USER === */
+/* === ME === */
 router.get("/me", protect, (req, res) => {
   res.json({ success: true, user: req.user });
 });
-
-

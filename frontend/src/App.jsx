@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Game from "./pages/Game";        // ✅ You missed this import
 import Leaderboard from "./pages/Leaderboard"; // ✅ optional if you have leaderboard.jsx
 
+
 // ✅ Route guard — blocks access if not logged in
 function Protected({ children }) {
   const raw = localStorage.getItem("user");

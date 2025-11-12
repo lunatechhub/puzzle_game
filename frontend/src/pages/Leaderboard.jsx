@@ -10,17 +10,17 @@ export default function Leaderboard() {
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
-    const u = raw ? JSON.parse(raw) : null;
-    if (!u) {
+    const user = raw ? JSON.parse(raw) : null;
+    if (!user) {
       navigate("/login", { replace: true });
       return;
     }
-    setUserEmail(u.email);
+    setUserEmail(user.email);
 
     (async () => {
       try {
         const { data } = await api.get("/api/game/leaderboard");
-        setPlayers(data || []);
+        setPlayers(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Leaderboard fetch error:", err);
       } finally {
@@ -40,9 +40,10 @@ export default function Leaderboard() {
         {loading ? (
           <p>Loading leaderboard...</p>
         ) : players.length ? (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <ul style={{ listStyle: "none", padding: 0 }}>
             {players.map((p, i) => (
-              <li key={i}
+              <li
+                key={i}
                 style={{
                   background: p.email === userEmail ? "#1e3a8a" : "#111827",
                   color: p.email === userEmail ? "#fff" : "#e5e7eb",
@@ -53,8 +54,12 @@ export default function Leaderboard() {
                   alignItems: "center",
                   justifyContent: "space-between",
                   fontWeight: p.email === userEmail ? "600" : "normal",
-                }}>
-                <span>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`#${i+1}`} {p.email===userEmail?"You":`Player ${i+1}`}</span>
+                }}
+              >
+                <span>
+                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}{" "}
+                  {p.email === userEmail ? "You" : p.email}
+                </span>
                 <span>{p.highscore || 0} pts</span>
               </li>
             ))}

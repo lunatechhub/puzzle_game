@@ -1,99 +1,84 @@
-// backend/routes/game.js
 import express from "express";
 import axios from "axios";
 import { pool } from "../db.js";
-import { protect } from "./auth.js";
 
 export const router = express.Router();
-/* === START NEW GAME === */
 
-router.post("/new", protect, async (req, res) => {
-  try {
-    const email = req.user.email;
-    const { level = "easy" } = req.body;
-    // Fetch a fresh Banana question
+/**
+ * === Helper: Fetch a Banana puzzle (solution between 1–9) ===
+ * Uses Marc Conrad's Banana API and ensures the puzzle is valid.
+ */
+async function fetchBananaPuzzle1to9(attempts = 5) {
+  for (let i = 0; i < attempts; i++) {
     const { data } = await axios.get("https://marcconrad.com/uob/banana/api.php");
-    if (!data?.question) throw new Error("Invalid Banana API response");
 
-    console.log(`🎮 New game started for ${email} (${level})`);
-    res.json({
-      message: "New game started",
-      question: data.question,
-      solution: data.solution, // ⚠️ don't expose in production, used only for testing
-      level,
-    });
-  } catch (err) {
-    console.error("New game error:", err);
-    res.status(500).json({ message: "Failed to start new game" });
+    const sol = Number(String(data?.solution ?? "").trim());
+
+    if (Number.isFinite(sol) && sol >= 1 && sol <= 9 && data?.question) {
+      return {
+        question: data.question, // puzzle image URL
+        solution: sol,           // numeric answer
+      };
+    }
   }
-});
+  throw new Error("Could not fetch valid Banana puzzle (1–9 range)");
+}
 
-/* === FETCH QUESTION DIRECTLY === */
-router.get("/question", async (req, res) => {
+/* === ROUTE: Get a Banana puzzle === */
+router.get("/question", async (_req, res) => {
   try {
-    const { data } = await axios.get("https://marcconrad.com/uob/banana/api.php");
-    if (!data?.question) throw new Error("Invalid API response");
-    res.json(data);
+    const puzzle = await fetchBananaPuzzle1to9();
+    res.json(puzzle); // ✅ frontend expects { question, solution }
   } catch (err) {
-    console.error("Banana API error:", err.message);
+    console.error("❌ Banana API error:", err.message);
     res.status(500).json({ message: "Failed to fetch Banana question" });
   }
 });
 
-/* === SAVE SCORE (PROTECTED) === */
-router.post("/score", protect, async (req, res) => {
+/* === ROUTE: Save or update player score === */
+router.post("/score", async (req, res) => {
+  const { email, score } = req.body;
+
+  // ✅ Validate inputs
+  if (!email || score === undefined) {
+    return res.status(400).json({ error: "Missing email or score" });
+  }
+
   try {
-    const { level = "easy", score = 0 } = req.body;
-    const email = req.user.email;
-
-    const [userRows] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
-    if (!userRows.length) return res.status(404).json({ message: "User not found" });
-
-    const userId = userRows[0].id;
-
-    // Upsert logic
+    // ✅ Insert or update score
     await pool.query(
-      `INSERT INTO scores (user_id, level, highscore)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-         highscore = GREATEST(highscore, VALUES(highscore)),
-         last_played = CURRENT_TIMESTAMP`,
-      [userId, level, score]
+      `
+      INSERT INTO players (email, highscore)
+      VALUES (?, ?)
+      ON DUPLICATE KEY UPDATE 
+        highscore = GREATEST(highscore, VALUES(highscore))
+      `,
+      [email, score]
     );
 
+    console.log(`✅ Score saved for ${email}: ${score}`);
     res.json({ success: true, message: "Score saved successfully!" });
   } catch (err) {
-    console.error("Score save error:", err);
-    res.status(500).json({ message: "Server error saving score" });
+    console.error("❌ Score update error:", err);
+    res.status(500).json({ error: "Database error saving score" });
   }
 });
 
-/* === LEADERBOARD === */
-router.get("/leaderboard", async (req, res) => {
+/* === ROUTE: Get leaderboard === */
+router.get("/leaderboard", async (_req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT 
-        u.email, 
-        COALESCE(SUM(s.highscore), 0) AS total_score,
-        MAX(s.last_played) AS last_played
-      FROM users u
-      LEFT JOIN scores s ON s.user_id = u.id
-      GROUP BY u.id
-      ORDER BY total_score DESC
-      LIMIT 10
-    `);
+    const [rows] = await pool.query(
+      `
+      SELECT email, highscore 
+      FROM players 
+      ORDER BY highscore DESC 
+      LIMIT 20
+      `
+    );
 
-    res.json({
-      success: true,
-      leaderboard: rows,
-    });
+    res.json(rows); // ✅ frontend expects an array of players
   } catch (err) {
-    console.error("Leaderboard error:", err);
-    res.status(500).json({ message: "Error fetching leaderboard" });
+    console.error("❌ Leaderboard fetch error:", err);
+    res.status(500).json({ error: "Database error fetching leaderboard" });
   }
 });
-
-
-
-
-
