@@ -4,31 +4,32 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { pool } from "../db.js";
 import dotenv from "dotenv";
-
-
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
 export const router = express.Router();
 
-// Helper: consistent error
+// ===== Use cookie-parser =====
+router.use(cookieParser());
+
+// ===== Helper Functions =====
 const sendError = (res, code, message) =>
   res.status(code).json({ success: false, message });
 
-// Helper: sign JWT
 const signToken = (user) =>
   jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 
-// Middleware: protect routes
+// ===== Middleware: Protect Routes =====
 export const protect = async (req, res, next) => {
   try {
-    const header = req.headers.authorization || "";
-    if (!header.startsWith("Bearer "))
-      return sendError(res, 401, "No token provided");
+    const token = req.cookies.token;
+    console.log("🧩 Incoming protect() token:", token); // ✅ Debug line
 
-    const token = header.split(" ")[1];
+    if (!token) return sendError(res, 401, "No authentication cookie found");
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const [rows] = await pool.query("SELECT id, email FROM users WHERE id = ?", [
@@ -37,14 +38,15 @@ export const protect = async (req, res, next) => {
     if (!rows.length) return sendError(res, 401, "User not found");
 
     req.user = rows[0];
+    console.log("✅ Authenticated user:", req.user.email); // ✅ Debug line
     next();
   } catch (err) {
     console.error("Auth error:", err.message);
-    return sendError(res, 401, "Invalid or expired token");
+    return sendError(res, 401, "Invalid or expired authentication cookie");
   }
 };
 
-/* === REGISTER === */
+// ===== REGISTER =====
 router.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -69,7 +71,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-/* === LOGIN === */
+// ===== LOGIN =====
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -80,6 +82,7 @@ router.post("/login", async (req, res) => {
       "SELECT id, email, password FROM users WHERE email = ?",
       [email]
     );
+
     if (!rows.length) return sendError(res, 401, "Invalid email or password");
 
     const user = rows[0];
@@ -88,10 +91,18 @@ router.post("/login", async (req, res) => {
 
     const token = signToken(user);
 
-    return res.json({
+    // ✅ Set secure cookie (JWT)
+    res.cookie("token", token, {
+      httpOnly: true, // 🔒 prevents JS access (XSS safe)
+      secure: process.env.NODE_ENV === "production", // only HTTPS in prod
+      sameSite: "Lax", // avoids CSRF on normal navigation
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // ✅ Send response (no need to expose token)
+    res.json({
       success: true,
       message: "Login successful",
-      token,
       user: { id: user.id, email: user.email },
     });
   } catch (err) {
@@ -100,9 +111,17 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/* === GET CURRENT USER === */
+// ===== LOGOUT =====
+router.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Lax",
+  });
+  res.json({ success: true, message: "Logged out successfully" });
+});
+
+// ===== GET CURRENT USER =====
 router.get("/me", protect, (req, res) => {
   res.json({ success: true, user: req.user });
 });
-
-
