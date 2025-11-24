@@ -67,3 +67,6 @@ router.get("/leaderboard", async (_req, res) => {
     res.status(500).json({ message: "Server error fetching leaderboard" });
   }
 });
+
+/* === USER HIGHSCORES === */
+// Add your new endpoint here
