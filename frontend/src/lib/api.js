@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "http://localhost:5000",
-  withCredentials: true, // very important for cookies
+  withCredentials: true,   // <— CRITICAL FIX
 });
 
 export default api;
