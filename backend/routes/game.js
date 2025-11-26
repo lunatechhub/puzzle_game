@@ -9,7 +9,9 @@ export const router = express.Router();
 router.get("/question", async (req, res) => {
   try {
     const { data } = await axios.get("https://marcconrad.com/uob/banana/api.php");
+
     if (!data?.question) throw new Error("Invalid API response");
+
     res.json(data);
   } catch (err) {
     console.error("Banana API error:", err.message);
@@ -26,7 +28,8 @@ router.post("/score", protect, async (req, res) => {
     console.log("💾 Saving score:", score, "for user:", email);
 
     const [userRows] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
-    if (!userRows.length) return res.status(404).json({ message: "User not found" });
+    if (!userRows.length)
+      return res.status(404).json({ message: "User not found" });
 
     const userId = userRows[0].id;
 
@@ -40,6 +43,7 @@ router.post("/score", protect, async (req, res) => {
     );
 
     console.log("✅ Score saved successfully for:", email);
+
     res.json({ success: true, message: "Score saved successfully!" });
   } catch (err) {
     console.error("❌ Score save error:", err);
@@ -47,26 +51,28 @@ router.post("/score", protect, async (req, res) => {
   }
 });
 
-/* === LEADERBOARD (show per level) === */
+/* === FIXED LEADERBOARD === */
 router.get("/leaderboard", async (_req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT 
-         u.email, 
-         s.level, 
-         s.highscore, 
-         s.last_played
-       FROM users u
-       JOIN scores s ON s.user_id = u.id
-       ORDER BY u.email ASC, s.level ASC`
+        u.email,
+        s.level,
+        s.highscore
+      FROM users u
+      JOIN scores s ON s.user_id = u.id
+      ORDER BY s.highscore DESC
+      LIMIT 20`
     );
-    console.log(`🏆 Leaderboard fetched successfully: ${rows.length} entries`);
-    res.json({ success: true, leaderboard: rows });
+
+    console.log(`🏆 Leaderboard: ${rows.length} rows returned`);
+
+    res.json({ leaderboard: rows });
   } catch (err) {
     console.error("Leaderboard error:", err);
     res.status(500).json({ message: "Server error fetching leaderboard" });
   }
 });
 
-/* === USER HIGHSCORES === */
-// Add your new endpoint here
+/* === EXPORT === */
+export default router;
